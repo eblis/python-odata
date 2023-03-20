@@ -111,6 +111,11 @@ class ParameterizedQueryFilter(BaseQueryFilter):
         return f"{self.op}({self.member}, {self.value})"
 
 
+class FunctionCallQueryFilter(BaseQueryFilter):
+    def __str__(self):
+        return f"{self.op}({self.member})"
+
+
 class CompoundQueryFilter(BaseQueryFilter):
     def __str__(self):
         return f"({self.member}) {self.op} ({self.value})"
@@ -261,6 +266,22 @@ class PropertyBase(object):
         """Does not contain"""
         value = self.escape_value(value)
         return UnaryQueryFilter("not", ParameterizedQueryFilter(self.name, "contains", value))
+
+    def trim(self):
+        """Trim the string"""
+        return FunctionCallQueryFilter(self.name, "trim", None)
+
+    def floor(self):
+        """For floats, return the floor() of the value"""
+        return FunctionCallQueryFilter(self.name, "floor", None)
+
+    def round(self):
+        """For floats, return the round() of the value"""
+        return FunctionCallQueryFilter(self.name, "round", None)
+
+    def ceiling(self):
+        """For floats, return the ceiling() of the value"""
+        return FunctionCallQueryFilter(self.name, "ceiling", None)
 
     def is_null(self):
         """Is null, not defined"""
