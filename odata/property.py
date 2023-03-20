@@ -262,6 +262,14 @@ class PropertyBase(object):
         value = self.escape_value(value)
         return UnaryQueryFilter("not", ParameterizedQueryFilter(self.name, "contains", value))
 
+    def is_null(self):
+        """Is null, not defined"""
+        return SimpleQueryFilter(self.name, "eq", "null")
+
+    def not_null(self):
+        """Is not null, is defined"""
+        return SimpleQueryFilter(self.name, "ne", "null")
+
 
 class IntegerProperty(PropertyBase):
     """
