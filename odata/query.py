@@ -73,10 +73,11 @@ class Query(Generic[Q]):
     :py:class:`~odata.service.ODataService` object.
     """
 
-    def __init__(self, entitycls: Q, connection=None, options=None):
+    def __init__(self, entitycls: Q, connection=None, options=None, compound_expand = True):
         self.entity: Q = entitycls
         self.options = options or dict()
         self.connection = connection
+        self.compound_expand = compound_expand
 
     def __iter__(self) -> Q:
         url = self._get_url()
@@ -147,7 +148,7 @@ class Query(Generic[Q]):
             e = self.entity.__new__(self.entity, from_data=row, connection=self.connection)
             return e
 
-    def _get_or_create_option(self, name) -> str:
+    def _get_or_create_option(self, name) -> str | list:
         if name not in self.options:
             self.options[name] = []
         return self.options[name]
@@ -202,6 +203,18 @@ class Query(Generic[Q]):
         option.append(value)
         return q
 
+    def __compound_expand_name(self, name):
+        if self.compound_expand:
+            s = name.split("/")
+            # Details becomes Details
+            # Details/Order becomes Details($expand=Order)
+            # Details/Order/Name becomes Details($expand=Order($expand=Name))
+            final = ""
+            for value in reversed(s):
+                final = f"{value}($expand={final})" if final else value
+            name = final
+        return name
+
     def expand(self, *values) -> "Query[Q]":
         """
         Set ``$expand`` query parameter
@@ -212,7 +225,8 @@ class Query(Generic[Q]):
         q = self._new_query()
         option = q._get_or_create_option('$expand')
         for prop in values:
-            option.append(prop.name)
+            name = self.__compound_expand_name(prop.name)
+            option.append(name)
         return q
 
     def order_by(self, *values) -> "Query[Q]":
