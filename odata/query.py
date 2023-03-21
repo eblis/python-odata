@@ -148,7 +148,7 @@ class Query(Generic[Q]):
             e = self.entity.__new__(self.entity, from_data=row, connection=self.connection)
             return e
 
-    def _get_or_create_option(self, name) -> str | list:
+    def _get_or_create_option(self, name) -> list:
         if name not in self.options:
             self.options[name] = []
         return self.options[name]
