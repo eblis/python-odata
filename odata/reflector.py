@@ -79,6 +79,7 @@ making calls and queries a lot easier to implement.
 import rich
 from io import StringIO
 from pathlib import Path
+from enum import EnumMeta
 
 from mako.lookup import TemplateLookup
 from mako.runtime import Context
@@ -92,7 +93,8 @@ type_translations = {
     "DecimalProperty": "decimal.Decimal",
     "FloatProperty": "float",
     "BooleanProperty": "bool",
-    "UUIDProperty": "uuid.UUID"
+    "UUIDProperty": "uuid.UUID",
+    "EnumTypeProperty": "str"
 }
 
 
@@ -109,10 +111,14 @@ class MetadataReflector:
         lookup = TemplateLookup(directories=[str(template_folder)], output_encoding="utf-8", preprocessor=[lambda x: x.replace("\r\n", "\n")])
         template = lookup.get_template("main.mako")
 
+        types = {k: v for k, v in self.types.items() if not isinstance(v, EnumMeta)}
+        enum_types = {k: v for k, v in self.types.items() if isinstance(v, EnumMeta)}
+
         buffer = StringIO()
         context = Context(buffer,
                           entities=self.entities,
-                          types=self.types,
+                          types=types,
+                          enum_types=enum_types,
                           type_translations=type_translations,
                           package=self.package,
                           metadata_url=self.metadata_url)
