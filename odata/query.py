@@ -170,7 +170,7 @@ class Query(Generic[Q]):
         o['$filter'] = self.options.get('$filter', [])[:]
         o['$expand'] = self.options.get('$expand', [])[:]
         o['$orderby'] = self.options.get('$orderby', [])[:]
-        return Query[Q](self.entity, options=o, connection=self.connection)
+        return self.__class__[Q](self.entity, options=o, connection=self.connection)
 
     def as_string(self) -> str:
         query = self._format_params(self._get_options())
