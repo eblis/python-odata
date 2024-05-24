@@ -87,7 +87,7 @@ class ODataConnection(object):
                         detailed_message = ie.get('message', None) or detailed_message
             elif "application/problem+json" in response_ct:
                 errordata = response.json()
-                if "exception"in errordata:
+                if "exception" in errordata:
                     odata_exception = errordata.get("exception")
                     code = errordata.get("type", None) or code
                     code = errordata.get("errorId", None) or code
@@ -99,6 +99,8 @@ class ODataConnection(object):
                         if candidate in odata_exception:
                             ie = odata_exception[candidate]
                             detailed_message = ie.get("message", None) or detailed_message
+                else:
+                    detailed_message = response.headers.get('WWW-Authenticate', detailed_message)
             else:
                 detailed_message = response.text
 
