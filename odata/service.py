@@ -165,6 +165,9 @@ class ODataService(object):
         outputter = MetadataReflector(metadata_url=metadata_url, entities=self.entities, types=self.types, package=package, quiet=self.quiet_progress)
         outputter.write_reflected_types()
 
+    def load_entities(self, metadata_file):
+        _, self.entities, self.types = self.metadata.get_entity_sets(base=self.Entity, metadata_file=metadata_file)
+
     def create_context(self, auth=None, session=None):
         """
         Create new context to use for session-like usage

@@ -221,8 +221,11 @@ class MetaData(object):
             else:
                 self.service.functions[function['name']] = function_class()
 
-    def get_entity_sets(self, base=None):
-        document = self.load_document()
+    def get_entity_sets(self, base=None, metadata_file=None):
+        if metadata_file is None:
+            document = self.load_document()
+        else:
+            document = ET.parse(metadata_file)
         schemas, entity_sets, actions, functions = self.parse_document(document)
 
         base_class = base or declarative_base()
