@@ -16,13 +16,20 @@ import datetime
 import uuid
 import decimal
 
+from enum import Enum
+
 from odata.entity import EntityBase
 from odata.property import StringProperty, IntegerProperty, NavigationProperty, DatetimeProperty, DecimalProperty, FloatProperty, BooleanProperty, UUIDProperty
-
+from odata.enumtype import EnumType, EnumTypeProperty
 
 class ReflectionBase(EntityBase):
     pass
 
+# ************ Start enum type definitions ************
+%for type_name in enum_types:
+<%include file="enum_entity.mako" args="name=type_name, entity=enum_types[type_name]"/>
+%endfor
+# ************ End enum type definitions ************
 
 # ************ Start type definitions ************
 %for type_name in types:
