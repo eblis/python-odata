@@ -82,16 +82,17 @@ class ODataService(object):
     :param reflect_entities: Create a request to the service for its metadata, and create entity classes automatically
     :param reflect_output_path: Optional parameter, if reflect_entities is configured it will create all reflected classes at this path
     :param session: Custom Requests session to use for communication with the endpoint
+    :param extra_headers: Any extra headers that need to be passed to the OData service
     :param auth: Custom Requests auth object to use for credentials
     :param quiet_progress: Don't show any progress information while reflecting metadata and while other long duration tasks are running. Default is to show progress
     :raises ODataConnectionError: Fetching metadata failed. Server returned an HTTP error code
     """
-    def __init__(self, url, base=None, reflect_entities=False, reflect_output_package: Optional[str] = None, session=None, auth=None, quiet_progress=False):
+    def __init__(self, url, base=None, reflect_entities=False, reflect_output_package: Optional[str] = None, session=None, extra_headers: dict = None, auth=None, quiet_progress=False):
         self.url = url
         self.metadata_url = urllib.parse.urljoin(url + "/", "$metadata")
         self.collections = {}
         self.log = logging.getLogger('odata.service')
-        self.default_context = Context(auth=auth, session=session)
+        self.default_context = Context(auth=auth, session=session, extra_headers=extra_headers)
         self.quiet_progress = quiet_progress
 
         self.Base = base or declarative_base()
@@ -165,16 +166,17 @@ class ODataService(object):
         outputter = MetadataReflector(metadata_url=metadata_url, entities=self.entities, types=self.types, package=package, quiet=self.quiet_progress)
         outputter.write_reflected_types()
 
-    def create_context(self, auth=None, session=None):
+    def create_context(self, auth=None, session=None, extra_headers: dict = None):
         """
         Create new context to use for session-like usage
 
         :param auth: Custom Requests auth object to use for credentials
         :param session: Custom Requests session to use for communication with the endpoint
+        :param extra_headers: Any extra headers to pass to use for all communications
         :return: Context instance
         :rtype: Context
         """
-        return Context(auth=auth, session=session)
+        return Context(auth=auth, session=session, extra_headers=extra_headers)
 
     def describe(self, entity) -> None:
         """

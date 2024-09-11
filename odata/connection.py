@@ -22,7 +22,6 @@ def catch_requests_errors(fn):
 
 
 class ODataConnection(object):
-
     base_headers = {
         'Accept': 'application/json',
         'OData-Version': '4.0',
@@ -30,13 +29,18 @@ class ODataConnection(object):
     }
     timeout = 90
 
-    def __init__(self, session=None, auth=None):
+    def __init__(self, session=None, auth=None, extra_headers: dict = None):
         if session is None:
             self.session = requests.Session()
         else:
             self.session = session
         self.auth = auth
         self.log = logging.getLogger('odata.connection')
+
+        self.extra_headers = extra_headers
+
+        if extra_headers:
+            self.base_headers.update(extra_headers)
 
     def _apply_options(self, kwargs):
         kwargs['timeout'] = self.timeout
