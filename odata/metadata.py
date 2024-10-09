@@ -4,6 +4,7 @@ import logging
 import sys
 
 import rich
+import rich.console
 import rich.progress
 
 has_lxml = False
@@ -43,10 +44,11 @@ class MetaData(object):
 
     _annotation_term_computed = 'Org.OData.Core.V1.Computed'
 
-    def __init__(self, service, quiet: bool = False):
+    def __init__(self, service, console: rich.console.Console, quiet: bool = False):
         self.url = service.metadata_url
         self.connection = service.default_context.connection
         self.service = service
+        self.console = console
         self.quiet = quiet
 
     def property_type_to_python(self, edm_type):
@@ -64,7 +66,7 @@ class MetaData(object):
 
     def _set_object_relationships(self, all_types):
         entities = self._get_entities_from_types(all_types)
-        for entity in rich.progress.track(entities, "Entity relationships", transient=True, show_speed=True, update_period=1, disable=self.quiet):  # type: EntityBase
+        for entity in rich.progress.track(entities, "Entity relationships", console=self.console, transient=True, show_speed=True, update_period=1, disable=self.quiet):  # type: EntityBase
             schema = entity.__odata_schema__
 
             all_schema_navs = schema.get('navigation_properties', [])
@@ -89,7 +91,7 @@ class MetaData(object):
 
     def _create_entities(self, all_types, entity_base_class, schemas, depth=1):
         orphan_entities = []
-        with rich.progress.Progress(transient=True, disable=self.quiet) as progress:
+        with rich.progress.Progress(transient=True, console=self.console, disable=self.quiet) as progress:
             schema_task = progress.add_task("Schemas", total=len(schemas))
             for schema in schemas:
                 entity_task = progress.add_task(f"Creating entities for {schema['name']}", total=len(schema.get("entities")))
@@ -159,7 +161,7 @@ class MetaData(object):
 
     def _create_actions(self, all_types, actions, get_entity_or_prop_from_type):
         entities = self._get_entities_from_types(all_types)
-        for action in rich.progress.track(actions, "Creating actions", transient=True, disable=self.quiet):
+        for action in rich.progress.track(actions, "Creating actions", console=self.console, transient=True, disable=self.quiet):
             entity_type = action['is_bound_to']
             bind_entity = None
             bound_to_collection = False
@@ -191,7 +193,7 @@ class MetaData(object):
 
     def _create_functions(self, all_types, functions, get_entity_or_prop_from_type):
         entities = self._get_entities_from_types(all_types)
-        for function in rich.progress.track(functions, "Creating functions", transient=True, disable=self.quiet):
+        for function in rich.progress.track(functions, "Creating functions", console=self.console, transient=True, disable=self.quiet):
             entity_type = function['is_bound_to']
             bind_entity = None
             bound_to_collection = False
@@ -238,7 +240,7 @@ class MetaData(object):
 
             return self.property_type_to_python(typename)
 
-        with rich.progress.Progress(transient=True, disable=self.quiet) as progress:
+        with rich.progress.Progress(transient=True, console=self.console, disable=self.quiet) as progress:
             schema_task = progress.add_task("Schemas", total=len(schemas))
             for schema in schemas:
                 enum_task = progress.add_task(f"Enums for {schema['name']}", total=len(schema['enum_types']))
@@ -254,7 +256,7 @@ class MetaData(object):
         self._create_entities(all_types, base_class, schemas)
 
         sets = {}
-        for entity_set in rich.progress.track(entity_sets.values(), "Processing entity types ...", transient=True, disable=self.quiet):
+        for entity_set in rich.progress.track(entity_sets.values(), "Processing entity types ...", console=self.console, transient=True, disable=self.quiet):
             entity_class = all_types.get(entity_set.get('type'))
             set_name = entity_set.get('name')
             is_singleton = entity_set.get('singleton', False)
@@ -270,7 +272,7 @@ class MetaData(object):
 
     def load_document(self):
         self.log.info('Loading metadata document: {0}'.format(self.url))
-        with rich.console.Console(quiet=self.quiet).status("Loading metadata"):
+        with self.console.status("Loading metadata"):
             response = self.connection._do_get(self.url)
             return ET.fromstring(response.content)
 

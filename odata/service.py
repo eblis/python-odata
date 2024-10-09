@@ -52,10 +52,14 @@ NTLM Auth (for services like Microsoft Dynamics 2016):
 API
 ---
 """
-
+import importlib
 import logging
+import sys
 import urllib.parse
 from typing import Optional, TypeVar
+
+import rich
+import rich.console
 
 from .entity import EntityBase, declarative_base
 from .metadata import MetaData
@@ -79,21 +83,51 @@ class ODataService(object):
     """
     :param url: Endpoint address. Must be an address that can be appended with ``$metadata``
     :param base: Custom base class to use for entities
-    :param reflect_entities: Create a request to the service for its metadata, and create entity classes automatically
+    :param reflect_entities: Create a request to the service for its metadata, and create entity classes automatically. If set to None it will only reflect the entities if package doesn't exist already
     :param reflect_output_path: Optional parameter, if reflect_entities is configured it will create all reflected classes at this path
     :param session: Custom Requests session to use for communication with the endpoint
     :param extra_headers: Any extra headers that need to be passed to the OData service
     :param auth: Custom Requests auth object to use for credentials
+    :param console: Rich console instance to use for messages. If set to None a new console will be created. Console will inherit quiet flag from quiet_progress.
     :param quiet_progress: Don't show any progress information while reflecting metadata and while other long duration tasks are running. Default is to show progress
     :raises ODataConnectionError: Fetching metadata failed. Server returned an HTTP error code
     """
-    def __init__(self, url: str, base=None, reflect_entities=False, reflect_output_package: Optional[str] = None, session=None, extra_headers: dict = None, auth=None, quiet_progress=False):
+    def __init__(self,
+                 url: str,
+                 base=None,
+                 reflect_entities: Optional[bool] = None,
+                 reflect_output_package: Optional[str] = None,
+                 session=None,
+                 extra_headers: dict = None,
+                 auth=None,
+                 console: rich.console.Console = None,
+                 quiet_progress: bool = False):
         self.url = url if url.endswith("/") else url + "/"  # make sure url ends with / otherwise we have problems
         self.metadata_url = urllib.parse.urljoin(self.url, "$metadata")
         self.collections = {}
         self.log = logging.getLogger('odata.service')
         self.default_context = Context(auth=auth, session=session, extra_headers=extra_headers)
+        self.console = console if console is not None else rich.console.Console()
+        self.console.quiet = quiet_progress
         self.quiet_progress = quiet_progress
+
+        # if we were given an output_package we can get the ReflectionBase from it
+        if reflect_output_package and base is None:
+            try:
+                # check if the reflected package has been imported or not
+                if reflect_output_package in sys.modules:
+                    # it's imported, use it
+                    package = sys.modules[reflect_output_package]
+                else:
+                    # import it now for usage
+                    package = importlib.import_module(reflect_output_package)
+                base = getattr(package, "ReflectionBase")
+            except:
+                # if we have automatic reflect entities change it to True here, we had a problem with the package
+                if reflect_entities is None:
+                    reflect_entities = True
+                if not quiet_progress:
+                    self.console.print(f"[red]Couldn't get ReflectionBase instance from {reflect_output_package} package.")
 
         self.Base = base or declarative_base()
         """
@@ -134,7 +168,7 @@ class ODataService(object):
         :type types: dict
         """
 
-        self.metadata = MetaData(self, quiet=self.quiet_progress)
+        self.metadata = MetaData(self, console=self.console, quiet=self.quiet_progress)
         self.Entity = self.Base  # alias
 
         self.Action = type('Action', (Action,), dict(__odata_service__=self))
