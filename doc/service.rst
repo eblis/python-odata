@@ -2,8 +2,8 @@
     :members:
     :exclude-members: ODataError
 
-Parameters
-----------
+Service
+==========
 
 reflect_entites
 ---------------
