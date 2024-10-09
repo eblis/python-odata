@@ -87,9 +87,9 @@ class ODataService(object):
     :param quiet_progress: Don't show any progress information while reflecting metadata and while other long duration tasks are running. Default is to show progress
     :raises ODataConnectionError: Fetching metadata failed. Server returned an HTTP error code
     """
-    def __init__(self, url, base=None, reflect_entities=False, reflect_output_package: Optional[str] = None, session=None, extra_headers: dict = None, auth=None, quiet_progress=False):
-        self.url = url
-        self.metadata_url = urllib.parse.urljoin(url + "/", "$metadata")
+    def __init__(self, url: str, base=None, reflect_entities=False, reflect_output_package: Optional[str] = None, session=None, extra_headers: dict = None, auth=None, quiet_progress=False):
+        self.url = url if url.endswith("/") else url + "/"  # make sure url ends with / otherwise we have problems
+        self.metadata_url = urllib.parse.urljoin(self.url, "$metadata")
         self.collections = {}
         self.log = logging.getLogger('odata.service')
         self.default_context = Context(auth=auth, session=session, extra_headers=extra_headers)
@@ -156,7 +156,7 @@ class ODataService(object):
             if reflect_output_package:
                 self._write_reflected_types(metadata_url=self.metadata_url, package=reflect_output_package)
 
-        self.Entity.__odata_url_base__ = url
+        self.Entity.__odata_url_base__ = self.url
         self.Entity.__odata_service__ = self
 
     def __repr__(self):

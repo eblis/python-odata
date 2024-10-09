@@ -1,3 +1,4 @@
+
 <%page args="name, entity"/>\
 <% short_name = name.split(".")[-1] %>\
 class ${short_name}(ReflectionBase):
@@ -22,4 +23,3 @@ None
 <% attr = getattr(entity, nav_prop['name']) %>\
 <%include file="nav_property.mako" args="nav_property=attr, values=nav_prop"/>
   %endfor
-
