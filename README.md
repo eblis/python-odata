@@ -18,6 +18,7 @@ Available on [readthedocs.org](https://python-odata.readthedocs.io/en/latest/ind
 
 ## Demo
 
+### Northwind ODATA service
 Reading data from the Northwind service.
 
 ```python
@@ -60,9 +61,6 @@ for order_details in values:
     service.values(order_details.Order.Employee)
 ```
 
-Writing changes. Note that the real Northwind service is _read-only_
-and the data modifications do not work against it.
-
 ```python
 import datetime
 
@@ -79,3 +77,55 @@ for order in query:
     order.Employee = empl
     Service.save(order)
 ```
+
+### TripPin ODATA service (v4)
+OData V4 example with Enums.
+
+```python
+import logging
+
+import requests
+import rich
+
+# comment on first run so you get the generated package
+import generated.trippin
+from odata import ODataService
+
+requests.packages.urllib3.disable_warnings()
+
+
+def test_trippin(console):
+    proxy = {'http': '', 'https': ''}
+
+    session = requests.Session()
+
+    session.trust_env = False
+    session.verify = False
+    session.proxies.update(proxy)
+
+    service = ODataService(
+        url="https://services.odata.org/v4/TripPinServiceRW",
+        session=session,
+        base=generated.trippin.ReflectionBase,  # comment on first run
+        reflect_entities=True,
+        reflect_output_package="generated.trippin")
+    People = generated.trippin.People
+
+    q = service.query(People)
+
+    values = q.all()
+    for value in values:
+        console.rule(f"People {value.FirstName} {value.LastName}")
+        service.values(value)
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level="DEBUG")
+    console = rich.console.Console()
+    test_trippin(console)
+```
+
+Writing changes. Note that the real Northwind service is _read-only_
+and the data modifications do not work against it.
+
+
