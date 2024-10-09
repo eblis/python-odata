@@ -106,8 +106,8 @@ def test_trippin(console):
     service = ODataService(
         url="https://services.odata.org/v4/TripPinServiceRW",
         session=session,
-        base=generated.trippin.ReflectionBase,  # comment on first run
-        reflect_entities=True,
+        #base=generated.trippin.ReflectionBase,  # comment on first run
+        #reflect_entities=True,
         reflect_output_package="generated.trippin")
     People = generated.trippin.People
 
