@@ -17,4 +17,7 @@
   % if property.is_computed_value:
 , is_computed_value=True\
   % endif
+  % if hasattr(property, 'enum_class'):
+, enum_class=${property.enum_class.__name__}\
+  % endif
 )
