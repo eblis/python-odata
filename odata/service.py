@@ -107,8 +107,7 @@ class ODataService(object):
         self.collections = {}
         self.log = logging.getLogger('odata.service')
         self.default_context = Context(auth=auth, session=session, extra_headers=extra_headers)
-        self.console = console if console is not None else rich.console.Console()
-        self.console.quiet = quiet_progress
+        self.console = console if console is not None else rich.console.Console(quiet=quiet_progress)
         self.quiet_progress = quiet_progress
 
         # if we were given an output_package we can get the ReflectionBase from it

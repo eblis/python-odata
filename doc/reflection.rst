@@ -5,8 +5,7 @@
 
 Reflection
 ==========
-
-Full example with reflection and enums
+Full example with reflection and enums:
 
 .. code-block:: python
    import logging
@@ -30,6 +29,7 @@ Full example with reflection and enums
 
        service = ODataService(
            url="https://services.odata.org/v4/TripPinServiceRW",
+           console=console,
            session=session,
            reflect_output_package="generated.trippin")
 
@@ -50,3 +50,6 @@ Full example with reflection and enums
        logging.basicConfig(level="DEBUG")
        console = rich.console.Console()
        test_trippin(console)
+
+
+
