@@ -259,6 +259,14 @@ class EntityState(object):
                 else:
                     if value.__odata__.id:
                         insert_data['{0}@odata.bind'.format(prop.name)] = value.__odata__.id
+                        
+                        # Put the foreign key back into the request for compatibility with 
+                        #   systems that don't handle {entity} odata.bind correctly
+                        try:
+                            insert_data[prop.foreign_key] = getattr(value, prop.foreign_key)
+                        except:
+                           pass
+
                     else:
                         insert_data[prop.name] = self._clean_new_entity(value)
 
