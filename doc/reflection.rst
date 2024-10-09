@@ -7,6 +7,7 @@ Reflection
 ==========
 
 Full example with reflection and enums
+
 .. code-block:: python
    import logging
 
