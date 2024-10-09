@@ -49,7 +49,7 @@ class Context:
         entity.__odata__.persisted = False
         self.log.info(u'Success')
 
-    def save(self, entity, force_refresh=True, extra_headers=None):
+    def save(self, entity, force_refresh=True, extra_headers=None, omit_null_props=[]):
         """
         Creates a POST or PATCH call to the service. If the entity already has
         a primary key, an update is called. Otherwise the entity is inserted
@@ -63,14 +63,14 @@ class Context:
         """
 
         if self.is_entity_saved(entity):
-            self._update_existing(entity, force_refresh=force_refresh, extra_headers=extra_headers)
+            self._update_existing(entity, force_refresh=force_refresh, extra_headers=extra_headers, omit_null_props=omit_null_props)
         else:
-            self._insert_new(entity)
+            self._insert_new(entity, omit_null_props=omit_null_props)
 
     def is_entity_saved(self, entity):
         return entity.__odata__.persisted
 
-    def _insert_new(self, entity):
+    def _insert_new(self, entity, omit_null_props=[]):
         """
         Creates a POST call to the service, sending the complete new entity
 
@@ -84,7 +84,7 @@ class Context:
         self.log.info(u'Saving new entity')
 
         es = entity.__odata__
-        insert_data = es.data_for_insert()
+        insert_data = es.data_for_insert(omit_null_props)
         saved_data = self.connection.execute_post(url, insert_data)
         es.reset()
         es.connection = self.connection
@@ -95,7 +95,7 @@ class Context:
 
         self.log.info(u'Success')
 
-    def _update_existing(self, entity, force_refresh=True, extra_headers=None):
+    def _update_existing(self, entity, force_refresh=True, extra_headers=None, omit_null_props=[]):
         """
         Creates a PATCH call to the service, sending only the modified values
 
@@ -106,7 +106,7 @@ class Context:
             msg = 'Cannot update Entity that does not belong to EntitySet: {0}'.format(entity)
             raise ODataError(msg)
 
-        patch_data = es.data_for_update()
+        patch_data = es.data_for_update(omit_null_props)
 
         if len([i for i in patch_data if not i.startswith('@')]) == 0:
             self.log.debug(u'Nothing to update: {0}'.format(entity))

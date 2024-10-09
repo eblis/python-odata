@@ -244,7 +244,7 @@ class ODataService(object):
         """
         return self.default_context.delete(entity)
 
-    def save(self, entity, force_refresh=True):
+    def save(self, entity, force_refresh=True, omit_null_props=[]):
         """
         Creates a POST or PATCH call to the service. If the entity already has
         a primary key, an update is called. Otherwise the entity is inserted
@@ -254,4 +254,4 @@ class ODataService(object):
         :param force_refresh: Read full entity data again from service after PATCH call
         :raises ODataConnectionError: Invalid data or serverside error. Server returned an HTTP error code
         """
-        return self.default_context.save(entity, force_refresh=force_refresh)
+        return self.default_context.save(entity, force_refresh=force_refresh, omit_null_props=omit_null_props)
