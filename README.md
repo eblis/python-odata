@@ -21,20 +21,43 @@ Available on [readthedocs.org](https://python-odata.readthedocs.io/en/latest/ind
 Reading data from the Northwind service.
 
 ```python
+import requests
+from datetime import datetime
+
+# you can only import this on the second run, the first run will create the package
+# import generated 
 from odata import ODataService
+session = requests.Session()
+
 url = 'http://services.odata.org/V4/Northwind/Northwind.svc/'
-Service = ODataService(url, reflect_entities=True)
-Supplier = Service.entities['Supplier']
+service = ODataService(
+    url="http://services.odata.org/V4/Northwind/Northwind.svc/",
+    session=session,
+    base=generated.northwind.ReflectionBase,
+    reflect_entities=True,
+    reflect_output_package="generated.northwind")
+OrderDetails = generated.northwind.Order_Details
 
-query = Service.query(Supplier)
-query = query.limit(2)
-query = query.order_by(Supplier.CompanyName.asc())
+q = service.query(generated.northwind.Customers)
+q = q.filter(generated.northwind.Customers.ContactTitle.startswith('Sales'))
+q = q.filter(generated.northwind.Customers.PostalCode == '68306')
+data = q.first()
 
-for supplier in query:
-    print('Company:', supplier.CompanyName)
-
-    for product in supplier.Products:
-        print('- Product:', product.ProductName)
+query = service.query(OrderDetails)
+values = query.all()
+values = query \
+    .filter((OrderDetails.Order.Employee.HomePhone.contains("555")) | (OrderDetails.Order.Employee.City == "London")) \
+    .filter(OrderDetails.Order.Employee.FirstName.lacks("Steven")) \
+    .filter(OrderDetails.Order.OrderDate >= datetime(year=1990, month=5, day=1, hour=10, minute=10, second=59, tzinfo=pytz.UTC))\
+    .expand(OrderDetails.Order, OrderDetails.Order.Employee) \
+    .order_by(OrderDetails.Order.ShipCountry.asc()) \
+    .limit(10) \
+    .all()
+for order_details in values:
+    print(f"Order {order_details.OrderID}")
+    service.values(order_details)
+    service.values(order_details.Order)
+    service.values(order_details.Order.Employee)
 ```
 
 Writing changes. Note that the real Northwind service is _read-only_
