@@ -6,6 +6,7 @@ import logging
 
 import requests
 from requests.exceptions import RequestException
+from urllib.parse import urlencode, quote
 
 from odata import version
 from .exceptions import ODataError, ODataConnectionError
@@ -44,6 +45,8 @@ class ODataConnection(object):
 
     def _apply_options(self, kwargs):
         kwargs['timeout'] = self.timeout
+        if "params" in kwargs and kwargs["params"]:
+            kwargs["params"] = urlencode(kwargs["params"], quote_via=quote)
 
         if self.auth is not None:
             kwargs['auth'] = self.auth
