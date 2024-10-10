@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import logging
+from typing import Union
 
 from odata.query import Query
 from odata.connection import ODataConnection
@@ -49,7 +50,7 @@ class Context:
         entity.__odata__.persisted = False
         self.log.info(u'Success')
 
-    def save(self, entity, force_refresh=True, extra_headers=None, omit_null_props=[]):
+    def save(self, entity, force_refresh: bool = True, extra_headers=None, omit_null_props: Union[bool, list[str]] = False):
         """
         Creates a POST or PATCH call to the service. If the entity already has
         a primary key, an update is called. Otherwise the entity is inserted
@@ -58,6 +59,8 @@ class Context:
         :param entity: Model instance to insert or update
         :type entity: EntityBase
         :param force_refresh: Read full entity data again from service after PATCH call
+        :param omit_null_props: True/False or a list of properties to omit.
+            If set to true or given a list of properties these will be ommited from the request if they're set to None/null
         :param extra_headers: Add custom headers on patch, post (Example:B1S-ReplaceCollectionsOnPatch=true)
         :raises ODataConnectionError: Invalid data or serverside error. Server returned an HTTP error code
         """
@@ -70,7 +73,7 @@ class Context:
     def is_entity_saved(self, entity):
         return entity.__odata__.persisted
 
-    def _insert_new(self, entity, omit_null_props=[]):
+    def _insert_new(self, entity, omit_null_props: Union[bool, list[str]] = False):
         """
         Creates a POST call to the service, sending the complete new entity
 
@@ -95,7 +98,7 @@ class Context:
 
         self.log.info(u'Success')
 
-    def _update_existing(self, entity, force_refresh=True, extra_headers=None, omit_null_props=[]):
+    def _update_existing(self, entity, force_refresh=True, extra_headers=None, omit_null_props: Union[bool, list[str]] = False):
         """
         Creates a PATCH call to the service, sending only the modified values
 

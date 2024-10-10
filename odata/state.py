@@ -5,7 +5,7 @@ from __future__ import print_function
 import inspect
 import itertools
 from collections import OrderedDict
-from typing import Optional
+from typing import Optional, Union
 
 import rich
 import rich.panel
@@ -188,10 +188,10 @@ class EntityState(object):
         if prop.name not in self.dirty:
             self.dirty.append(prop.name)
 
-    def data_for_insert(self, omit_null_props=[]):
+    def data_for_insert(self, omit_null_props: Union[bool, list[str]] = False):
         return self._clean_new_entity(self.entity, omit_null_props)
 
-    def data_for_update(self, omit_null_props=[]):
+    def data_for_update(self, omit_null_props: Union[bool, list[str]] = False):
         update_data = OrderedDict()
         update_data['@odata.type'] = self.entity.__odata_type__
 
@@ -211,19 +211,23 @@ class EntityState(object):
                         update_data[key] = [i.__odata__.id for i in value]
                     else:
                         update_data[key] = value.__odata__.id
-        
-        update_data_filtered = {}
-        for prop_name, prop in update_data.items():
-            if omit_null_props is True or prop_name in omit_null_props:
-                # Should omit unless not None
-                if prop is None:
-                    # Omit from request
-                    continue
-                update_data_filtered[prop_name] = prop
 
-        return update_data_filtered
+        return EntityState._filter_null_properties(update_data, omit_null_props)
 
-    def _clean_new_entity(self, entity, omit_null_props=[]):
+    @staticmethod
+    def _filter_null_properties(properties: dict, omit_null_props: Union[bool, list[str]]) -> dict:
+        if omit_null_props is True or len(omit_null_props) > 0:
+            filtered_properties = {}
+            for prop_name, prop in properties.items():
+                if omit_null_props is True or prop_name in omit_null_props:
+                    # Should omit unless not None
+                    if prop is not None:
+                        filtered_properties[prop_name] = prop
+            return filtered_properties
+        else:
+            return properties
+
+    def _clean_new_entity(self, entity, omit_null_props: Union[str, list[str]] = False):
         """:type entity: odata.entity.EntityBase """
         insert_data = OrderedDict()
         insert_data['@odata.type'] = entity.__odata_type__
@@ -280,13 +284,4 @@ class EntityState(object):
                     else:
                         insert_data[prop.name] = self._clean_new_entity(value)
 
-        insert_data_filtered = {}
-        for prop_name, prop in insert_data.items():
-            if omit_null_props is True or prop_name in omit_null_props:
-                # Should omit unless not None
-                if prop is None:
-                    # Omit from request
-                    continue
-                insert_data_filtered[prop_name] = prop
-
-        return insert_data_filtered
+        return EntityState._filter_null_properties(insert_data, omit_null_props)
