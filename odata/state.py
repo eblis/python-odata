@@ -216,7 +216,7 @@ class EntityState(object):
 
     @staticmethod
     def _filter_null_properties(properties: dict, omit_null_props: Union[bool, list[str]]) -> dict:
-        if omit_null_props is True or len(omit_null_props) > 0:
+        if omit_null_props is True or (type(omit_null_props) == list and len(omit_null_props) > 0):
             filtered_properties = {}
             for prop_name, prop in properties.items():
                 if omit_null_props is True or prop_name in omit_null_props:
