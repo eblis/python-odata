@@ -56,7 +56,7 @@ import importlib
 import logging
 import sys
 import urllib.parse
-from typing import Optional, TypeVar
+from typing import Optional, TypeVar, Union
 
 import rich
 import rich.console
@@ -244,14 +244,16 @@ class ODataService(object):
         """
         return self.default_context.delete(entity)
 
-    def save(self, entity, force_refresh=True):
+    def save(self, entity, force_refresh=True, omit_null_props: Union[bool, list[str]] = False):
         """
         Creates a POST or PATCH call to the service. If the entity already has
         a primary key, an update is called. Otherwise the entity is inserted
         as new. Updating an entity will only send the changed values
 
         :param entity: Model instance to insert or update
+        :param omit_null_props: True/False or a list of properties to omit.
+            If set to true or given a list of properties these will be ommited from the request if they're set to None/null
         :param force_refresh: Read full entity data again from service after PATCH call
         :raises ODataConnectionError: Invalid data or serverside error. Server returned an HTTP error code
         """
-        return self.default_context.save(entity, force_refresh=force_refresh)
+        return self.default_context.save(entity, force_refresh=force_refresh, omit_null_props=omit_null_props)
