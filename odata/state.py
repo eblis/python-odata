@@ -11,6 +11,7 @@ import rich
 import rich.panel
 import rich.table
 
+from odata.complextype import ComplexTypeProperty
 from odata.property import PropertyBase, NavigationProperty
 
 
@@ -62,7 +63,7 @@ class EntityState(object):
             name = prop.name
             if prop.is_collection:
                 name += "[]"
-            if prop.primary_key:
+            if getattr(prop, "primary_key", False):
                 name += '*'
             if prop.name in self.dirty:
                 name += ' (dirty)'
@@ -155,7 +156,7 @@ class EntityState(object):
         props = []
         cls = self.entity.__class__
         for key, value in inspect.getmembers(cls):
-            if isinstance(value, PropertyBase):
+            if isinstance(value, (PropertyBase, ComplexTypeProperty)):
                 props.append((key, value))
         return props
 

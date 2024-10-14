@@ -13,11 +13,13 @@
 # ${padding}
 
 import datetime
-import uuid
 import decimal
-
+import uuid
+from dataclasses import dataclass
 from enum import Enum
+from typing import Optional
 
+from odata.complextype import ComplexType, ComplexTypeProperty
 from odata.entity import EntityBase
 from odata.property import StringProperty, IntegerProperty, NavigationProperty, DatetimeProperty, DecimalProperty, FloatProperty, BooleanProperty, UUIDProperty
 from odata.enumtype import EnumType, EnumTypeProperty
@@ -34,7 +36,16 @@ class ReflectionBase(EntityBase):
 
 # ************ End enum type definitions ************
 
+# ************ Start simple type definitions ************
+
+%for type_name in simple_types:
+<%include file="simple_type.mako" args="name=type_name, entity=simple_types[type_name]"/>
+%endfor
+
+# ************ End simple type definitions ************
+
 # ************ Start type definitions ************
+
 %for type_name in types:
 <%include file="entity.mako" args="name=type_name, entity=types[type_name]"/>
 %endfor

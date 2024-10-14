@@ -106,6 +106,15 @@ class SimpleQueryFilter(BaseQueryFilter):
         return f"{self.member} {self.op} {self.value}"
 
 
+class CollectionQueryFilter(BaseQueryFilter):
+    def __init__(self, member, op, inner_query):
+        super().__init__(member, op, inner_query)
+
+    def __str__(self):
+        l = self.member.lower()
+        return f"{self.member}/{self.op}({l}: {l}/{self.value})"
+
+
 class ParameterizedQueryFilter(BaseQueryFilter):
     def __str__(self):
         return f"{self.op}({self.member}, {self.value})"
@@ -121,91 +130,10 @@ class CompoundQueryFilter(BaseQueryFilter):
         return f"({self.member}) {self.op} ({self.value})"
 
 
-class PropertyBase(object):
-    """
-    A base class for all properties.
+class QueryBase(object):
 
-    :param name: Name of the property in the endpoint
-    :param primary_key: This property is a primary key
-    :param is_collection: This property contains multiple values
-    """
-    def __init__(self, name, primary_key=False, is_collection=False, is_computed_value=False):
-        """
-        :type name: str
-        :type primary_key: bool
-        """
+    def __init__(self, name):
         self.name = name
-        self.primary_key = primary_key
-        self.is_collection = is_collection
-        self.is_computed_value = is_computed_value
-
-    def __repr__(self):
-        return '<Property({0})>'.format(self.name)
-
-    def __get__(self, instance, owner):
-        """
-        :type instance: odata.entity.EntityBase
-        :type owner: odata.entity.EntityBase
-        """
-        if instance is None:
-            return self
-
-        es = instance.__odata__
-
-        if self.name in es:
-            raw_data = es[self.name]
-            if self.is_collection:
-                if raw_data is None:
-                    return
-
-                data = []
-                for i in raw_data:
-                    data.append(self.deserialize(i))
-                return data
-            else:
-                return self.deserialize(raw_data)
-        else:
-            raise AttributeError()
-
-    def __set__(self, instance, value):
-        """
-        :type instance: odata.entity.EntityBase
-        """
-
-        es = instance.__odata__
-
-        if self.name in es:
-            if self.is_collection:
-                data = []
-                for i in (value or []):
-                    data.append(self.serialize(i))
-                new_value = data
-            else:
-                new_value = self.serialize(value)
-            old_value = es[self.name]
-            if new_value != old_value:
-                es[self.name] = new_value
-                es.set_property_dirty(self)
-
-    def serialize(self, value):
-        """
-        Called when serializing the value to JSON. Implement this method when
-        creating a new Property class
-
-        :param value: Value given in Python code
-        :returns: Value that will be used in JSON
-        """
-        raise NotImplementedError()
-
-    def deserialize(self, value):
-        """
-        Called when deserializing the value from JSON to Python. Implement this
-        method when creating a new Property class
-
-        :param value: Value received in JSON
-        :returns: Value that will be passed to Python
-        """
-        raise NotImplementedError()
 
     def escape_value(self, value):
         """
@@ -290,6 +218,107 @@ class PropertyBase(object):
     def not_null(self):
         """Is not null, is defined"""
         return SimpleQueryFilter(self.name, "ne", "null")
+
+
+class CollectionQueryBase(object):
+    def __init__(self, name: str):
+        self.name = name
+
+    def any(self, inner_query: BaseQueryFilter) -> BaseQueryFilter:
+        modified = str(inner_query).replace(f"{self.name}/", "", 1).replace(f"{self.name}.", "", 1)
+        return CollectionQueryFilter(self.name, "any", modified)
+
+    def all(self, inner_query: BaseQueryFilter) -> BaseQueryFilter:
+        modified = str(inner_query).replace(f"{self.name}/", "", 1).replace(f"{self.name}.", "", 1)
+        return CollectionQueryFilter(self.name, "all", modified)
+
+
+class PropertyBase(QueryBase):
+    """
+    A base class for all properties.
+
+    :param name: Name of the property in the endpoint
+    :param primary_key: This property is a primary key
+    :param is_collection: This property contains multiple values
+    """
+    def __init__(self, name, primary_key=False, is_collection=False, is_computed_value=False, is_nullable=True):
+        """
+        :type name: str
+        :type primary_key: bool
+        """
+        super().__init__(name)
+        self.primary_key = primary_key
+        self.is_collection = is_collection
+        self.is_computed_value = is_computed_value
+        self.is_nullable = is_nullable
+
+    def __repr__(self):
+        return '<Property({0})>'.format(self.name)
+
+    def __get__(self, instance, owner):
+        """
+        :type instance: odata.entity.EntityBase
+        :type owner: odata.entity.EntityBase
+        """
+        if instance is None:
+            return self
+
+        es = instance.__odata__
+
+        if self.name in es:
+            raw_data = es[self.name]
+            if self.is_collection:
+                if raw_data is None:
+                    return
+
+                data = []
+                for i in raw_data:
+                    data.append(self.deserialize(i))
+                return data
+            else:
+                return self.deserialize(raw_data)
+        else:
+            raise AttributeError()
+
+    def __set__(self, instance, value):
+        """
+        :type instance: odata.entity.EntityBase
+        """
+
+        es = instance.__odata__
+
+        if self.name in es:
+            if self.is_collection:
+                data = []
+                for i in (value or []):
+                    data.append(self.serialize(i))
+                new_value = data
+            else:
+                new_value = self.serialize(value)
+            old_value = es[self.name]
+            if new_value != old_value:
+                es[self.name] = new_value
+                es.set_property_dirty(self)
+
+    def serialize(self, value):
+        """
+        Called when serializing the value to JSON. Implement this method when
+        creating a new Property class
+
+        :param value: Value given in Python code
+        :returns: Value that will be used in JSON
+        """
+        raise NotImplementedError()
+
+    def deserialize(self, value):
+        """
+        Called when deserializing the value from JSON to Python. Implement this
+        method when creating a new Property class
+
+        :param value: Value received in JSON
+        :returns: Value that will be passed to Python
+        """
+        raise NotImplementedError()
 
 
 class IntegerProperty(PropertyBase):
@@ -404,3 +433,20 @@ class UUIDProperty(StringProperty):
         if value is None:
             return 'null'
         return str(value)
+
+
+# todo: change to actual support, not string
+class LocationProperty(PropertyBase):
+    """
+    Property that stores a location
+    """
+    def serialize(self, value):
+        return value
+
+    def deserialize(self, value):
+        return value
+
+    def escape_value(self, value):
+        if value is None:
+            return 'null'
+        return u"'{0}'".format(value.replace("'", "''"))

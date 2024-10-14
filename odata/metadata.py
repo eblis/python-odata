@@ -7,6 +7,8 @@ import rich
 import rich.console
 import rich.progress
 
+from .complextype import ComplexType, ComplexTypeProperty
+
 has_lxml = False
 try:
     from lxml import etree as ET
@@ -18,8 +20,13 @@ except ImportError:
 
 from .entity import declarative_base, EntityBase
 from .exceptions import ODataReflectionError
-from .property import StringProperty, IntegerProperty, DecimalProperty, DatetimeProperty, BooleanProperty, NavigationProperty, UUIDProperty
+from .property import StringProperty, IntegerProperty, DecimalProperty, DatetimeProperty, BooleanProperty, NavigationProperty, UUIDProperty, \
+    LocationProperty
 from .enumtype import EnumType, EnumTypeProperty
+
+
+def str_2_bool(value: str) -> bool:
+    return value.lower() in ['true', 't', 'y', 'yes', "1"]
 
 
 class MetaData(object):
@@ -40,6 +47,7 @@ class MetaData(object):
         'Edm.DateTimeOffset': DatetimeProperty,
         'Edm.Boolean': BooleanProperty,
         'Edm.Guid': UUIDProperty,
+        'Edm.LocationPoint': LocationProperty,
     }
 
     _annotation_term_computed = 'Org.OData.Core.V1.Computed'
@@ -89,75 +97,145 @@ class MetaData(object):
                         )
                         setattr(entity, name, nav)
 
-    def _create_entities(self, all_types, entity_base_class, schemas, depth=1):
+    def _create_entities(self, progress, all_types, entity_base_class, schemas, depth=1):
         orphan_entities = []
-        with rich.progress.Progress(transient=True, console=self.console, disable=self.quiet) as progress:
-            schema_task = progress.add_task("Schemas", total=len(schemas))
-            for schema in schemas:
-                entity_task = progress.add_task(f"Creating entities for {schema['name']}", total=len(schema.get("entities")))
-                for entity_dict in schema.get('entities'):
-                    progress.update(entity_task, advance=1)
-                    entity_type = entity_dict['type']
-                    entity_type_alias = entity_dict.get('type_alias')
-                    entity_name = entity_dict['name']
+        for schema in schemas:
+            entity_task = progress.add_task(f"Creating entities for {schema['name']}", total=len(schema.get("entities")))
+            for entity_dict in schema.get('entities'):
+                progress.update(entity_task, advance=1)
+                entity_type = entity_dict['type']
+                entity_type_alias = entity_dict.get('type_alias')
+                entity_name = entity_dict['name']
 
-                    if entity_type in all_types:
+                if entity_type in all_types:
+                    continue
+
+                parent_entity_class = None
+
+                if entity_dict.get('base_type'):
+                    base_type = entity_dict.get('base_type')
+                    parent_entity_class = all_types.get(base_type)
+
+                    if parent_entity_class is None:
+                        # base class not yet created
+                        orphan_entities.append(entity_type)
                         continue
 
-                    parent_entity_class = None
+                super_class = parent_entity_class or entity_base_class
+                object_dict = dict(
+                    __odata_schema__=entity_dict,
+                    __odata_type__=entity_type,
+                )
+                entity_class = type(entity_name, (super_class,), object_dict)
 
-                    if entity_dict.get('base_type'):
-                        base_type = entity_dict.get('base_type')
-                        parent_entity_class = all_types.get(base_type)
+                all_types[entity_type] = entity_class
+                if entity_type_alias:
+                    all_types[entity_type_alias] = entity_class
 
-                        if parent_entity_class is None:
-                            # base class not yet created
-                            orphan_entities.append(entity_type)
-                            continue
+                for prop in entity_dict.get('properties'):
+                    prop_name = prop['name']
 
-                    super_class = parent_entity_class or entity_base_class
-                    object_dict = dict(
-                        __odata_schema__=entity_dict,
-                        __odata_type__=entity_type,
-                    )
-                    entity_class = type(entity_name, (super_class,), object_dict)
+                    if hasattr(entity_class, prop_name):
+                        # do not replace existing properties (from Base)
+                        continue
 
-                    all_types[entity_type] = entity_class
-                    if entity_type_alias:
-                        all_types[entity_type_alias] = entity_class
+                    property_type = all_types.get(prop['type'])
 
-                    for prop in entity_dict.get('properties'):
-                        prop_name = prop['name']
+                    if property_type and issubclass(property_type, EnumType):
+                        property_instance = EnumTypeProperty(prop_name, enum_class=property_type)
+                        property_instance.is_computed_value = prop['is_computed_value']
+                    elif property_type and issubclass(property_type, ComplexType):
+                        property_instance = ComplexTypeProperty(prop_name, type_class=property_type)
+                        property_instance.is_computed_value = prop['is_computed_value']
+                        property_instance.is_collection = prop["is_collection"]
+                        property_instance.is_nullable = prop['is_nullable']
+                    else:
+                        type_ = self.property_type_to_python(prop['type'])
+                        type_options = {
+                            'primary_key': prop['is_primary_key'],
+                            'is_collection': prop['is_collection'],
+                            'is_nullable': prop['is_nullable'],
+                            'is_computed_value': prop['is_computed_value'],
+                        }
+                        property_instance = type_(prop_name, **type_options)
+                    setattr(entity_class, prop_name, property_instance)
 
-                        if hasattr(entity_class, prop_name):
-                            # do not replace existing properties (from Base)
-                            continue
+            progress.remove_task(entity_task)
+        if len(orphan_entities) > 0:
+            if depth > 10:
+                errmsg = ('Types could not be resolved. '
+                          'Orphaned types: {0}').format(', '.join(orphan_entities))
+                raise ODataReflectionError(errmsg)
+            depth += 1
+            self._create_entities(progress, all_types, entity_base_class, schemas, depth)
 
-                        property_type = all_types.get(prop['type'])
+    def _create_complextypes(self, progress, all_types, complex_base_class, schemas, depth=1):
+        orphan_entities = []
+        for schema in schemas:
+            complex_task = progress.add_task(f"Creating complex types for {schema['name']}", total=len(schema.get("complex_types")))
+            for complex_dict in schema.get('complex_types'):
+                progress.update(complex_task, advance=1)
+                complex_type = complex_dict['type']
+                complex_name = complex_dict['name']
 
-                        if property_type and issubclass(property_type, EnumType):
-                            property_instance = EnumTypeProperty(prop_name, enum_class=property_type)
-                            property_instance.is_computed_value = prop['is_computed_value']
-                        else:
-                            type_ = self.property_type_to_python(prop['type'])
-                            type_options = {
-                                'primary_key': prop['is_primary_key'],
-                                'is_collection': prop['is_collection'],
-                                'is_computed_value': prop['is_computed_value'],
-                            }
-                            property_instance = type_(prop_name, **type_options)
-                        setattr(entity_class, prop_name, property_instance)
+                if complex_type in all_types:
+                    continue
 
-                progress.remove_task(entity_task)
-                progress.update(schema_task, advance=1)
+                parent_complex_class = None
 
-            if len(orphan_entities) > 0:
-                if depth > 10:
-                    errmsg = ('Types could not be resolved. '
-                              'Orphaned types: {0}').format(', '.join(orphan_entities))
-                    raise ODataReflectionError(errmsg)
-                depth += 1
-                self._create_entities(all_types, entity_base_class, schemas, depth)
+                if complex_dict.get('base_type'):
+                    base_type = complex_dict.get('base_type')
+                    parent_complex_class = all_types.get(base_type)
+
+                    if parent_complex_class is None:
+                        # base class not yet created
+                        orphan_entities.append(complex_type)
+                        continue
+
+                super_class = parent_complex_class or complex_base_class
+                object_dict = dict(
+                    __odata_schema__=complex_dict,
+                    __odata_type__=complex_type,
+                )
+
+                entity_class = type(complex_name, (super_class,), object_dict)
+
+                all_types[complex_type] = entity_class
+
+                for prop in complex_dict.get('properties'):
+                    prop_name = prop['name']
+
+                    if hasattr(entity_class, prop_name):
+                        # do not replace existing properties (from Base)
+                        continue
+
+                    property_type = all_types.get(prop['type'])
+
+                    if property_type and issubclass(property_type, EnumType):
+                        property_instance = EnumTypeProperty(prop_name, enum_class=property_type)
+                        property_instance.is_computed_value = prop['is_computed_value']
+                    elif property_type and issubclass(property_type, ComplexType):
+                        property_instance = ComplexTypeProperty(prop_name, type_class=property_type)
+                        property_instance.is_computed_value = prop['is_computed_value']
+                        property_instance.is_nullable = prop['is_nullable']
+                    else:
+                        type_ = self.property_type_to_python(prop['type'])
+                        type_options = {
+                            'is_collection': prop['is_collection'],
+                            'is_nullable': prop['is_nullable'],
+                            'is_computed_value': prop['is_computed_value'],
+                        }
+                        property_instance = type_(prop_name, **type_options)
+                    setattr(entity_class, prop_name, property_instance)
+
+            progress.remove_task(complex_task)
+        if len(orphan_entities) > 0:
+            if depth > 10:
+                errmsg = ('Types could not be resolved. '
+                          'Orphaned types: {0}').format(', '.join(orphan_entities))
+                raise ODataReflectionError(errmsg)
+            depth += 1
+            self._create_complextypes(progress, all_types, complex_base_class, schemas, depth)
 
     def _create_actions(self, all_types, actions, get_entity_or_prop_from_type):
         entities = self._get_entities_from_types(all_types)
@@ -249,11 +327,11 @@ class MetaData(object):
                     names = [(i['name'], i['value']) for i in enum_type['members']]
                     created_enum = EnumType(enum_type['name'], names=names)
                     all_types[enum_type['fully_qualified_name']] = created_enum
-
                 progress.remove_task(enum_task)
                 progress.update(schema_task, advance=1)
 
-        self._create_entities(all_types, base_class, schemas)
+            self._create_complextypes(progress, all_types, ComplexType, schemas)
+            self._create_entities(progress, all_types, base_class, schemas)
 
         sets = {}
         for entity_set in rich.progress.track(entity_sets.values(), "Processing entity types ...", console=self.console, transient=True, disable=self.quiet):
@@ -359,6 +437,7 @@ class MetaData(object):
         entity = {
             'name': entity_name,
             'type': entity_type_name,
+            'open': str_2_bool(entity_element.attrib.get("OpenType", "false")),
             'properties': [],
             'navigation_properties': [],
         }
@@ -379,6 +458,7 @@ class MetaData(object):
         for entity_property in xmlq(entity_element, 'edm:Property'):
             p_name = entity_property.attrib['Name']
             p_type = entity_property.attrib['Type']
+            p_nullable = str_2_bool(entity_property.attrib.get("Nullable", "true"))
 
             is_collection, p_type = self._type_is_collection(p_type)
             is_computed_value = False
@@ -393,6 +473,7 @@ class MetaData(object):
                 'name': p_name,
                 'type': p_type,
                 'is_primary_key': p_name in entity_pks,
+                'is_nullable': p_nullable,
                 'is_collection': is_collection,
                 'is_computed_value': is_computed_value,
             })
@@ -400,6 +481,7 @@ class MetaData(object):
         for nav_property in xmlq(entity_element, 'edm:NavigationProperty'):
             p_name = nav_property.attrib['Name']
             p_type = nav_property.attrib['Type']
+            p_nullable = str_2_bool(nav_property.attrib.get("Nullable", "true"))
             p_foreign_key = None
 
             ref_constraint = xmlq(nav_property, 'edm:ReferentialConstraint')
@@ -410,6 +492,7 @@ class MetaData(object):
             entity['navigation_properties'].append({
                 'name': p_name,
                 'type': p_type,
+                'is_nullable': p_nullable,
                 'foreign_key': p_foreign_key,
             })
         return entity
@@ -429,6 +512,39 @@ class MetaData(object):
                 'value': member_value,
             })
         return enum
+
+    def _parse_complextype(self, xmlq, complextype_element, schema_name):
+        complex_name = complextype_element.attrib['Name']
+
+        complex_type_name = '.'.join([schema_name, complex_name])
+
+        complex = {
+            'name': complex_name,
+            'type': complex_type_name,
+            'open': str_2_bool(complextype_element.attrib.get('OpenType', 'false')),
+            'properties': []
+        }
+
+        base_type = complextype_element.attrib.get('BaseType')
+        if base_type:
+            complex['base_type'] = base_type
+
+        for complex_property in xmlq(complextype_element, 'edm:Property'):
+            p_name = complex_property.attrib['Name']
+            p_type = complex_property.attrib['Type']
+            p_nullable = str_2_bool(complex_property.attrib.get('Nullable', "true"))
+
+            is_collection, p_type = self._type_is_collection(p_type)
+            is_computed_value = False
+
+            complex['properties'].append({
+                'name': p_name,
+                'type': p_type,
+                'is_nullable': p_nullable,
+                'is_collection': is_collection,
+                'is_computed_value': is_computed_value,
+            })
+        return complex
 
     def parse_document(self, doc):
         schemas = []
@@ -458,6 +574,10 @@ class MetaData(object):
             for enum_type in xmlq(schema, 'edm:EnumType'):
                 enum = self._parse_enumtype(xmlq, enum_type, schema_name)
                 schema_dict['enum_types'].append(enum)
+
+            for complex_type in xmlq(schema, 'edm:ComplexType'):
+                complex_type = self._parse_complextype(xmlq, complex_type, schema_name)
+                schema_dict['complex_types'].append(complex_type)
 
             for entity_type in xmlq(schema, 'edm:EntityType'):
                 entity = self._parse_entity(xmlq, entity_type, schema_name, schema_alias)

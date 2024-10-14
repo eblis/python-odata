@@ -75,6 +75,7 @@ use the Product class to create new objects or query existing ones:
     for product in query:
         print(product.name, product.is_product_available())
 """
+from odata.complextype import ComplexTypeProperty
 from odata.exceptions import ODataConnectionError
 
 try:
@@ -103,6 +104,16 @@ class EntityBase(object):
             raise ODataConnectionError(f"Cannot query {cls.__name__} objects as they don't have "
                                        f"the collection defined. Are you sure you're querying the correct object ?")
 
+    @staticmethod
+    def _get_simple_type(entity, property_name: str, raw_data: dict):
+        raw = raw_data.get(property_name)
+        try:
+            member = getattr(entity, property_name)
+            if member and issubclass(member.__class__, ComplexTypeProperty):
+                return member.deserialize(raw)
+        except Exception as ex:
+            return raw
+
     def __new__(cls, *args, **kwargs):
         i = super(EntityBase, cls).__new__(cls)
         i.__odata__ = es = EntityState(i)
@@ -113,7 +124,7 @@ class EntityBase(object):
             raw_data = kwargs.pop('from_data')
 
             for prop_name, prop in es.properties:
-                i.__odata__[prop.name] = raw_data.get(prop.name)
+                i.__odata__[prop.name] = EntityBase._get_simple_type(i, prop_name, raw_data)
 
             # check for values from $expand
             for prop_name, prop in es.navigation_properties:

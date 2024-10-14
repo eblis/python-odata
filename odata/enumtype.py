@@ -17,9 +17,10 @@ class EnumTypeProperty(PropertyBase):
     :param enum_class: A subclass of EnumType
     """
 
-    def __init__(self, name, enum_class=EnumType):
+    def __init__(self, name, enum_class=EnumType, is_nullable: bool = True):
         super(EnumTypeProperty, self).__init__(name)
         self.enum_class = enum_class
+        self.is_nullable = is_nullable
 
     def serialize(self, value):
         return value.name

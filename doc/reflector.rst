@@ -40,6 +40,7 @@ Full example with reflection and enums:
 
        # although the import will work if placed here, you will still have a weird error about a null URL on the first run
        # that it because the base is not correctly configured on first run, you need to run the code a second time
+       # error is something like AttributeError: 'NoneType' object has no attribute 'url'
        import generated.trippin
        People = generated.trippin.People
 

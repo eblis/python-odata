@@ -48,6 +48,7 @@ class NavigationProperty(object):
     not inherit from PropertyBase.
     """
     def __init__(self, name, entitycls: Union[type, str], entity_package: str = None, collection=False, foreign_key=None):
+        super().__init__()
         from odata.property import PropertyBase
         self.name = name
         self.class_package = entity_package
@@ -110,6 +111,9 @@ class NavigationProperty(object):
         instance.__odata__.set_property_dirty(self)
 
     def __getattr__(self, item):
+        if self.is_collection:
+            raise AttributeError(f"Field {self.name} is a collection, you need to use any() or all() on the collection")
+
         if item.startswith("__"):
             raise AttributeError(f"Skipping recursive check for {item}")
         if self.entitycls:
@@ -118,7 +122,7 @@ class NavigationProperty(object):
             cpy.name = f"{self.name}/{item}"
             return cpy
         else:
-            raise Exception(f"Couldn't find {item} in {self.name}")
+            raise AttributeError(f"Couldn't find {item} in {self.name}")
 
     def navigation_url(self, instance):
         es = instance.__odata__

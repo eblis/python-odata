@@ -81,29 +81,39 @@ from io import StringIO
 from pathlib import Path
 from enum import EnumMeta
 
+from mako import exceptions
 from mako.lookup import TemplateLookup
 from mako.runtime import Context
 
+from odata.complextype import ComplexType
 
 type_translations = {
     "StringProperty": "str",
     "IntegerProperty": "int",
-    "NavigationProperty": "caca",
+    "NavigationProperty": "caca",  # fixme: is this used ?
     "DatetimeProperty": "datetime.datetime",
     "DecimalProperty": "decimal.Decimal",
     "FloatProperty": "float",
     "BooleanProperty": "bool",
     "UUIDProperty": "uuid.UUID",
-    "EnumTypeProperty": "str"
+    "EnumTypeProperty": "str",
+    "LocationProperty": "str",
 }
 
 
 class MetadataReflector:
-    def __init__(self, metadata_url: str, entities: list["EntitySetCategories"], types: list["EntityBase"], package: str, quiet: bool = False):
+    def __init__(self,
+                 metadata_url: str,
+                 entities: dict[str, "EntitySetCategories"],
+                 types: dict[str, "EntityBase"],
+                 package: str,
+                 console: rich.console.Console,
+                 quiet: bool = False):
         self.package = package
         self.metadata_url = metadata_url
         self.entities = entities
         self.types = types
+        self.console = console
         self.quiet = quiet
 
     def write_reflected_types(self):
@@ -114,16 +124,25 @@ class MetadataReflector:
         types = {k: v for k, v in self.types.items() if not isinstance(v, EnumMeta)}
         enum_types = {k: v for k, v in self.types.items() if isinstance(v, EnumMeta)}
 
+        simple_types = {k: v for k, v in self.types.items() if issubclass(v, ComplexType)}
+        types = {k: v for k, v in types.items() if k not in simple_types}
+
         buffer = StringIO()
         context = Context(buffer,
                           entities=self.entities,
                           types=types,
                           enum_types=enum_types,
+                          simple_types=simple_types,
+                          all_types=self.types,
                           type_translations=type_translations,
                           package=self.package,
                           metadata_url=self.metadata_url)
-        with rich.console.Console(quiet=self.quiet).status("Loading metadata"):
-            template.render_context(context)
+        with self.console.status("Loading metadata"):
+            try:
+                template.render_context(context)
+            except Exception as ex:
+                self.console.print(exceptions.text_error_template(lookup).render())
+                raise ex
 
         output_path = Path(self.package.replace(".", "/")).with_suffix(".py")
         if not output_path.parent.exists():

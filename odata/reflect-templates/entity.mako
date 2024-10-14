@@ -15,7 +15,7 @@ None
     # Simple properties
   %for prop in schema['properties']:
 <% attr = getattr(entity, prop['name']) %>\
-<%include file="property.mako" args="property=attr, values=prop"/>
+<%include file="property.mako" args="entity=entity, property=attr, values=prop"/>
   %endfor
 
     # Navigation properties

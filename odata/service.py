@@ -82,9 +82,9 @@ Q = TypeVar('Q')
 class ODataService(object):
     """
     :param url: Endpoint address. Must be an address that can be appended with ``$metadata``
-    :param base: Custom base class to use for entities
-    :param reflect_entities: Create a request to the service for its metadata, and create entity classes automatically. If set to None it will only reflect the entities if package doesn't exist already
-    :param reflect_output_path: Optional parameter, if reflect_entities is configured it will create all reflected classes at this path
+    :param base: Custom base class to use for entities. If set to None and reflect_output_packages is defined it will attempt to read the ReflectionBase instance from the configured package name.
+    :param reflect_entities: Create a request to the service for its metadata, and create entity classes automatically. If set to None it will only reflect the entities if package doesn't already exist.
+    :param reflect_output_package: Optional parameter, if reflect_entities is configured it will create all reflected classes at this path
     :param session: Custom Requests session to use for communication with the endpoint
     :param extra_headers: Any extra headers that need to be passed to the OData service
     :param auth: Custom Requests auth object to use for credentials
@@ -196,7 +196,13 @@ class ODataService(object):
         return u'<ODataService at {0}>'.format(self.url)
 
     def _write_reflected_types(self, metadata_url: str, package: str):
-        outputter = MetadataReflector(metadata_url=metadata_url, entities=self.entities, types=self.types, package=package, quiet=self.quiet_progress)
+        outputter = MetadataReflector(
+            metadata_url=metadata_url,
+            entities=self.entities,
+            types=self.types,
+            package=package,
+            console=self.console,
+            quiet=self.quiet_progress)
         outputter.write_reflected_types()
 
     def create_context(self, auth=None, session=None, extra_headers: dict = None):
