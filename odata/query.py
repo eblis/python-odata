@@ -124,6 +124,10 @@ class Query(Generic[Q]):
         if _offset is not None:
             options['$skip'] = _offset
 
+        _apply = self.options.get('$apply')
+        if _apply is not None:
+            options['$apply'] = _apply
+
         _select = self.options.get('$select')
         if _select:
             options['$select'] = ','.join(_select)
@@ -166,6 +170,7 @@ class Query(Generic[Q]):
         o = dict()
         o['$top'] = self.options.get('$top', None)
         o['$skip'] = self.options.get('$skip', None)
+        o['$apply'] = self.options.get('$apply', None)
         o['$select'] = self.options.get('$select', [])[:]
         o['$filter'] = self.options.get('$filter', [])[:]
         o['$expand'] = self.options.get('$expand', [])[:]
@@ -261,6 +266,17 @@ class Query(Generic[Q]):
         """
         q = self._new_query()
         q.options['$skip'] = value
+        return q
+    
+    def apply(self, value) -> "Query[Q]":
+        """
+        Set ``$apply`` query parameter
+
+        :param values: Apply string
+        :return: Query instance
+        """
+        q = self._new_query()
+        q.options['$apply'] = value
         return q
 
     @staticmethod
