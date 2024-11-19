@@ -5,7 +5,7 @@ from __future__ import print_function
 import inspect
 import itertools
 from collections import OrderedDict
-from typing import Optional
+from typing import Optional, Union
 
 import rich
 import rich.panel
@@ -188,10 +188,10 @@ class EntityState(object):
         if prop.name not in self.dirty:
             self.dirty.append(prop.name)
 
-    def data_for_insert(self):
-        return self._clean_new_entity(self.entity)
+    def data_for_insert(self, omit_null_props: Union[bool, list[str]] = False):
+        return self._clean_new_entity(self.entity, omit_null_props)
 
-    def data_for_update(self):
+    def data_for_update(self, omit_null_props: Union[bool, list[str]] = False):
         update_data = OrderedDict()
         update_data['@odata.type'] = self.entity.__odata_type__
 
@@ -211,9 +211,23 @@ class EntityState(object):
                         update_data[key] = [i.__odata__.id for i in value]
                     else:
                         update_data[key] = value.__odata__.id
-        return update_data
 
-    def _clean_new_entity(self, entity):
+        return EntityState._filter_null_properties(update_data, omit_null_props)
+
+    @staticmethod
+    def _filter_null_properties(properties: dict, omit_null_props: Union[bool, list[str]]) -> dict:
+        if omit_null_props is True or (type(omit_null_props) == list and len(omit_null_props) > 0):
+            filtered_properties = {}
+            for prop_name, prop in properties.items():
+                if omit_null_props is True or prop_name in omit_null_props:
+                    # Should omit unless not None
+                    if prop is not None:
+                        filtered_properties[prop_name] = prop
+            return filtered_properties
+        else:
+            return properties
+
+    def _clean_new_entity(self, entity, omit_null_props: Union[str, list[str]] = False):
         """:type entity: odata.entity.EntityBase """
         insert_data = OrderedDict()
         insert_data['@odata.type'] = entity.__odata_type__
@@ -259,7 +273,15 @@ class EntityState(object):
                 else:
                     if value.__odata__.id:
                         insert_data['{0}@odata.bind'.format(prop.name)] = value.__odata__.id
+                        
+                        # Put the foreign key back into the request for compatibility with 
+                        #   systems that don't handle {entity} odata.bind correctly
+                        try:
+                            insert_data[prop.foreign_key] = getattr(value, prop.foreign_key)
+                        except:
+                           pass
+
                     else:
                         insert_data[prop.name] = self._clean_new_entity(value)
 
-        return insert_data
+        return EntityState._filter_null_properties(insert_data, omit_null_props)
