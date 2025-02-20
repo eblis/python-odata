@@ -49,3 +49,46 @@ class TestODataError(unittest.TestCase):
                     raise
 
             self.assertRaises(ODataError, action)
+
+
+    def test_parse_error_json_with_detail(self):
+        expected_code = '3000'
+        expected_detail_code = '3008'
+        expected_message = 'Error creating entity'
+        detail_message = 'TEST name already exists'
+        expected_detail_message = f'({expected_detail_code}): {detail_message}'
+
+        # Initial data ########################################################
+        def request_callback(request):
+            resp_body = {'error': {
+                'code': expected_code,
+                'message': expected_message,
+                'details': [
+                    {
+                        'code': expected_detail_code,
+                        'message': detail_message
+                    }
+                ]
+            }}
+            headers = {
+                'Content-Type': 'application/json;odata.metadata=minimal'
+            }
+            return requests.codes.bad_request, headers, json.dumps(resp_body)
+
+        with responses.RequestsMock() as rsps:
+            rsps.add_callback(
+                rsps.GET, Product.__odata_url__(),
+                callback=request_callback,
+                content_type='application/json',
+            )
+
+            def action():
+                try:
+                    Service.query(Product).first()
+                except ODataError as e:
+                    assert e.code == expected_code
+                    assert e.message == expected_message
+                    assert e.detailed_message == expected_detail_message
+                    raise
+
+            self.assertRaises(ODataError, action)
