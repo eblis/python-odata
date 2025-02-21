@@ -16,6 +16,10 @@ from odata.property import PropertyBase, NavigationProperty
 
 class EntityState(object):
 
+    ODATA_BIND_REQUIRES_SLASH: bool = False
+    ODATA_TYPE_REQUIRED: bool = True
+    ODATA_REMOVE_EMPTY_PARAMS: bool = False
+
     def __init__(self, entity):
         """:type entity: EntityBase """
         self.entity: "EntityBase" = entity
@@ -183,6 +187,11 @@ class EntityState(object):
             if prop.name in self.dirty:
                 rv.append((prop_name, prop))
         return rv
+    
+    def _format_odata_bind_key(self, prop_name):
+        key = '{0}@odata.bind'.format(prop_name)
+        key = f'/{key}' if type(self).ODATA_BIND_REQUIRES_SLASH else key
+        return key
 
     def set_property_dirty(self, prop):
         if prop.name not in self.dirty:
@@ -193,7 +202,8 @@ class EntityState(object):
 
     def data_for_update(self):
         update_data = OrderedDict()
-        update_data['@odata.type'] = self.entity.__odata_type__
+        if type(self).ODATA_TYPE_REQUIRED:
+            update_data['@odata.type'] = self.entity.__odata_type__
 
         for _, prop in self.dirty_properties:
             if prop.is_computed_value:
@@ -206,17 +216,22 @@ class EntityState(object):
                 value = getattr(self.entity, prop_name, None)  # get the related object
                 """:type : None | odata.entity.EntityBase | list[odata.entity.EntityBase]"""
                 if value is not None:
-                    key = '{0}@odata.bind'.format(prop.name)
+                    key = self._format_odata_bind_key(prop.name)
                     if prop.is_collection:
                         update_data[key] = [i.__odata__.id for i in value]
                     else:
                         update_data[key] = value.__odata__.id
+
+        if type(self).ODATA_REMOVE_EMPTY_PARAMS:
+            update_data = _remove_empties(update_data)
+
         return update_data
 
     def _clean_new_entity(self, entity):
         """:type entity: odata.entity.EntityBase """
         insert_data = OrderedDict()
-        insert_data['@odata.type'] = entity.__odata_type__
+        if type(self).ODATA_TYPE_REQUIRED:
+            insert_data['@odata.type'] = entity.__odata_type__
 
         es = entity.__odata__
         for _, prop in es.properties:
@@ -247,7 +262,8 @@ class EntityState(object):
                         binds.append(i.__odata__.id)
 
                     if len(binds):
-                        insert_data['{0}@odata.bind'.format(prop.name)] = binds
+                        key = self._format_odata_bind_key(prop.name)
+                        insert_data[key] = binds
 
                     new_entities = []
                     for i in [i for i in value if i.__odata__.id is None]:
@@ -258,8 +274,17 @@ class EntityState(object):
 
                 else:
                     if value.__odata__.id:
-                        insert_data['{0}@odata.bind'.format(prop.name)] = value.__odata__.id
+                        key = self._format_odata_bind_key(prop.name)
+                        insert_data[key] = value.__odata__.id
                     else:
                         insert_data[prop.name] = self._clean_new_entity(value)
 
+        if type(self).ODATA_REMOVE_EMPTY_PARAMS:
+            insert_data = _remove_empties(insert_data)
+
         return insert_data
+
+def _remove_empties(data):
+    for key in [key for key, value in data.items() if value is None]:
+        del data[key]
+    return data
