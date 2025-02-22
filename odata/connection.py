@@ -198,6 +198,12 @@ class ODataConnection(object):
 
         response = self._do_patch(url, data=data, headers=headers)
         self._handle_odata_error(response)
+        response_ct = response.headers.get('content-type', '')
+        if response.status_code == requests.codes.no_content:
+            return
+        if 'application/json' in response_ct:
+            return response.json()
+        # no exceptions here, PATCHing to Actions may not return data
 
     def execute_delete(self, url, extra_headers=None):
         headers = {}
