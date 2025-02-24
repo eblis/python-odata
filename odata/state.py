@@ -11,6 +11,7 @@ import rich
 import rich.panel
 import rich.table
 
+from odata.flags import ODataServerFlags
 from odata.property import PropertyBase, NavigationProperty
 
 
@@ -188,21 +189,21 @@ class EntityState(object):
                 rv.append((prop_name, prop))
         return rv
     
-    def _format_odata_bind_key(self, prop_name):
+    def _format_odata_bind_key(self, prop_name, require_slash: bool = False):
         key = '{0}@odata.bind'.format(prop_name)
-        key = f'/{key}' if type(self).ODATA_BIND_REQUIRES_SLASH else key
+        key = f'/{key}' if require_slash else key
         return key
 
     def set_property_dirty(self, prop):
         if prop.name not in self.dirty:
             self.dirty.append(prop.name)
 
-    def data_for_insert(self):
-        return self._clean_new_entity(self.entity)
+    def data_for_insert(self, server_flags: ODataServerFlags):
+        return self._clean_new_entity(self.entity, server_flags)
 
-    def data_for_update(self):
+    def data_for_update(self, server_flags: ODataServerFlags):
         update_data = OrderedDict()
-        if type(self).ODATA_TYPE_REQUIRED:
+        if server_flags.provide_odata_type_annotation:
             update_data['@odata.type'] = self.entity.__odata_type__
 
         for _, prop in self.dirty_properties:
@@ -216,21 +217,21 @@ class EntityState(object):
                 value = getattr(self.entity, prop_name, None)  # get the related object
                 """:type : None | odata.entity.EntityBase | list[odata.entity.EntityBase]"""
                 if value is not None:
-                    key = self._format_odata_bind_key(prop.name)
+                    key = self._format_odata_bind_key(prop.name, server_flags.odata_bind_requires_slash)
                     if prop.is_collection:
                         update_data[key] = [i.__odata__.id for i in value]
                     else:
                         update_data[key] = value.__odata__.id
 
-        if type(self).ODATA_REMOVE_EMPTY_PARAMS:
-            update_data = _remove_empties(update_data)
+        if server_flags.skip_null_properties:
+            update_data = _remove_null_properties(update_data)
 
         return update_data
 
-    def _clean_new_entity(self, entity):
+    def _clean_new_entity(self, entity, server_flags: ODataServerFlags):
         """:type entity: odata.entity.EntityBase """
         insert_data = OrderedDict()
-        if type(self).ODATA_TYPE_REQUIRED:
+        if server_flags.provide_odata_type_annotation:
             insert_data['@odata.type'] = entity.__odata_type__
 
         es = entity.__odata__
@@ -262,29 +263,29 @@ class EntityState(object):
                         binds.append(i.__odata__.id)
 
                     if len(binds):
-                        key = self._format_odata_bind_key(prop.name)
+                        key = self._format_odata_bind_key(prop.name, server_flags.odata_bind_requires_slash)
                         insert_data[key] = binds
 
                     new_entities = []
                     for i in [i for i in value if i.__odata__.id is None]:
-                        new_entities.append(self._clean_new_entity(i))
+                        new_entities.append(self._clean_new_entity(i, server_flags))
 
                     if len(new_entities):
                         insert_data[prop.name] = new_entities
 
                 else:
                     if value.__odata__.id:
-                        key = self._format_odata_bind_key(prop.name)
+                        key = self._format_odata_bind_key(prop.name, server_flags.odata_bind_requires_slash)
                         insert_data[key] = value.__odata__.id
                     else:
-                        insert_data[prop.name] = self._clean_new_entity(value)
+                        insert_data[prop.name] = self._clean_new_entity(value, server_flags)
 
-        if type(self).ODATA_REMOVE_EMPTY_PARAMS:
-            insert_data = _remove_empties(insert_data)
+        if server_flags.skip_null_properties:
+            insert_data = _remove_null_properties(insert_data)
 
         return insert_data
 
-def _remove_empties(data):
+def _remove_null_properties(data):
     for key in [key for key, value in data.items() if value is None]:
         del data[key]
     return data
