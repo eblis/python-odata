@@ -17,10 +17,6 @@ from odata.property import PropertyBase, NavigationProperty
 
 class EntityState(object):
 
-    ODATA_BIND_REQUIRES_SLASH: bool = False
-    ODATA_TYPE_REQUIRED: bool = True
-    ODATA_REMOVE_EMPTY_PARAMS: bool = False
-
     def __init__(self, entity):
         """:type entity: EntityBase """
         self.entity: "EntityBase" = entity
