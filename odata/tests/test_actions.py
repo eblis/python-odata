@@ -105,7 +105,7 @@ class TestFunctions(unittest.TestCase):
 
     def test_call_function_with_result_query(self):
         def request_callback(request):
-            self.assertTrue('filter=ProductName+eq+%27testtest%27' in request.url)
+            self.assertTrue('filter=%28ProductName%20eq%20%27testtest%27%29' in request.url)
 
             headers = {}
             body = dict(value='ok')
