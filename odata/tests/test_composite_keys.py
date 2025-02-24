@@ -57,12 +57,14 @@ class TestCompositeKeys(TestCase):
             sales_id = pm_sales.__odata__.id
             self.assertIn('ProductID=1', sales_id)
             self.assertIn('ManufacturerID=2', sales_id)
+            self.assertEqual(pm_sales.sales_amount, test_pm_sales_value["SalesAmount"])
+
+            sales_amount = 50.0
+            updated_values = {**test_pm_sales_value, "SalesAmount": sales_amount}
 
             rsps.add(rsps.PATCH, pm_sales.__odata__.instance_url,
-                     content_type='application/json')
-            rsps.add(rsps.GET, pm_sales.__odata__.instance_url,
                      content_type='application/json',
-                     json=dict(value=[test_pm_sales_value]))
+                     json=updated_values)
 
-            pm_sales.sales_amount = Decimal('50.0')
-            Service.save(pm_sales)
+            pm_sales.sales_amount = sales_amount
+            Service.save(pm_sales, force_refresh=False)
