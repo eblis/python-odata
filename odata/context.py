@@ -5,12 +5,14 @@ import logging
 from odata.query import Query
 from odata.connection import ODataConnection
 from odata.exceptions import ODataError
+from odata.flags import ODataServerFlags
 
 
 class Context:
-    def __init__(self, session=None, auth=None, extra_headers: dict=None):
+    def __init__(self, session=None, auth=None, extra_headers: dict=None, server_flags: ODataServerFlags=None):
         self.log = logging.getLogger('odata.context')
         self.connection = ODataConnection(session=session, auth=auth, extra_headers=extra_headers)
+        self.server_flags = server_flags
 
     def query(self, entitycls):
         q = Query(entitycls, connection=self.connection)
@@ -84,7 +86,7 @@ class Context:
         self.log.info(u'Saving new entity')
 
         es = entity.__odata__
-        insert_data = es.data_for_insert()
+        insert_data = es.data_for_insert(self.server_flags)
         saved_data = self.connection.execute_post(url, insert_data)
         es.reset()
         es.connection = self.connection
@@ -106,7 +108,7 @@ class Context:
             msg = 'Cannot update Entity that does not belong to EntitySet: {0}'.format(entity)
             raise ODataError(msg)
 
-        patch_data = es.data_for_update()
+        patch_data = es.data_for_update(self.server_flags)
 
         if len([i for i in patch_data if not i.startswith('@')]) == 0:
             self.log.debug(u'Nothing to update: {0}'.format(entity))

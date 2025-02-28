@@ -66,6 +66,7 @@ from .metadata import MetaData
 from .exceptions import ODataError
 from .context import Context
 from .action import Action, Function
+from .flags import ODataServerFlags
 
 __all__ = (
     'ODataService',
@@ -101,12 +102,13 @@ class ODataService(object):
                  extra_headers: dict = None,
                  auth=None,
                  console: rich.console.Console = None,
-                 quiet_progress: bool = False):
+                 quiet_progress: bool = False,
+                 server_flags: ODataServerFlags=ODataServerFlags()):
         self.url = url if url.endswith("/") else url + "/"  # make sure url ends with / otherwise we have problems
         self.metadata_url = urllib.parse.urljoin(self.url, "$metadata")
         self.collections = {}
         self.log = logging.getLogger('odata.service')
-        self.default_context = Context(auth=auth, session=session, extra_headers=extra_headers)
+        self.default_context = Context(auth=auth, session=session, extra_headers=extra_headers, server_flags=server_flags)
         self.console = console if console is not None else rich.console.Console(quiet=quiet_progress)
         self.quiet_progress = quiet_progress
 

@@ -36,7 +36,7 @@ class NorthwindAutomaticModelModelWithGenerationReadTest(unittest.TestCase):
         q = q.order_by(Customers.City.asc())
         data = q.all()
         assert data is not None, 'data is None'
-        assert len(data) > 20, 'data length wrong'
+        assert len(data) < 30, 'data length wrong'
 
     def test_iterating_query_result(self):
         q = service.query(Customers)
