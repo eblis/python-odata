@@ -93,6 +93,7 @@ class ODataService(object):
     :param quiet_progress: Don't show any progress information while reflecting metadata and while other long duration tasks are running. Default is to show progress
     :raises ODataConnectionError: Fetching metadata failed. Server returned an HTTP error code
     """
+
     def __init__(self,
                  url: str,
                  base=None,
@@ -103,11 +104,12 @@ class ODataService(object):
                  auth=None,
                  console: rich.console.Console = None,
                  quiet_progress: bool = False,
-                 server_flags: ODataServerFlags=ODataServerFlags()):
+                 server_flags: ODataServerFlags = ODataServerFlags()):
         self.url = url if url.endswith("/") else url + "/"  # make sure url ends with / otherwise we have problems
         self.metadata_url = urllib.parse.urljoin(self.url, "$metadata")
         self.collections = {}
         self.log = logging.getLogger('odata.service')
+        self.server_flags = server_flags
         self.default_context = Context(auth=auth, session=session, extra_headers=extra_headers, server_flags=server_flags)
         self.console = console if console is not None else rich.console.Console(quiet=quiet_progress)
         self.quiet_progress = quiet_progress
@@ -137,7 +139,7 @@ class ODataService(object):
         :type Base: EntityBase
         """
 
-        self.entities: dict[base or declarative_base()] = {}
+        self.entities: dict[str, base or declarative_base()] = {}
         """
         A dictionary containing all the automatically created Entity classes.
         Empty if the service is created with ``reflect_entities=False``
@@ -172,14 +174,14 @@ class ODataService(object):
         self.metadata = MetaData(self, console=self.console, quiet=self.quiet_progress)
         self.Entity = self.Base  # alias
 
-        self.Action = type('Action', (Action,), dict(__odata_service__=self))
+        self.Action: type = type('Action', (Action,), dict(__odata_service__=self))
         """
         A baseclass for this service's Actions
 
         :type Action: Action
         """
 
-        self.Function = type('Function', (Function,), dict(__odata_service__=self))
+        self.Function: type = type('Function', (Function,), dict(__odata_service__=self))
         """
         A baseclass for this service's Functions
 
@@ -211,7 +213,7 @@ class ODataService(object):
         :return: Context instance
         :rtype: Context
         """
-        return Context(auth=auth, session=session, extra_headers=extra_headers)
+        return Context(auth=auth, session=session, extra_headers=extra_headers, server_flags=self.server_flags)
 
     def describe(self, entity) -> None:
         """

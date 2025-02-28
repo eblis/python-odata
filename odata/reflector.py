@@ -99,7 +99,7 @@ type_translations = {
 
 
 class MetadataReflector:
-    def __init__(self, metadata_url: str, entities: list["EntitySetCategories"], types: list["EntityBase"], package: str, quiet: bool = False):
+    def __init__(self, metadata_url: str, entities: dict[str, "EntitySetCategories"], types: dict[str, "EntityBase"], package: str, quiet: bool = False):
         self.package = package
         self.metadata_url = metadata_url
         self.entities = entities
