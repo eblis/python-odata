@@ -92,6 +92,7 @@ class ODataService(object):
     :param console: Rich console instance to use for messages. If set to None a new console will be created. Console will inherit quiet flag from quiet_progress.
     :param quiet_progress: Don't show any progress information while reflecting metadata and while other long duration tasks are running. Default is to show progress
     :param server_flags: Server specific flags for an OData server
+    :param timeout: Connection timeout
     :raises ODataConnectionError: Fetching metadata failed. Server returned an HTTP error code
     """
 
@@ -105,13 +106,14 @@ class ODataService(object):
                  auth=None,
                  console: rich.console.Console = None,
                  quiet_progress: bool = False,
-                 server_flags: ODataServerFlags = ODataServerFlags()):
+                 server_flags: ODataServerFlags = ODataServerFlags(),
+                 timeout=90):
         self.url = url if url.endswith("/") else url + "/"  # make sure url ends with / otherwise we have problems
         self.metadata_url = urllib.parse.urljoin(self.url, "$metadata")
         self.collections = {}
         self.log = logging.getLogger('odata.service')
         self.server_flags = server_flags
-        self.default_context = Context(auth=auth, session=session, extra_headers=extra_headers, server_flags=server_flags)
+        self.default_context = Context(auth=auth, session=session, extra_headers=extra_headers, server_flags=server_flags, timeout=timeout)
         self.console = console if console is not None else rich.console.Console(quiet=quiet_progress)
         self.quiet_progress = quiet_progress
 
@@ -204,17 +206,18 @@ class ODataService(object):
         outputter = MetadataReflector(metadata_url=metadata_url, entities=self.entities, types=self.types, package=package, quiet=self.quiet_progress)
         outputter.write_reflected_types()
 
-    def create_context(self, auth=None, session=None, extra_headers: dict = None):
+    def create_context(self, auth=None, session=None, extra_headers: dict = None, timeout=90):
         """
         Create new context to use for session-like usage
 
         :param auth: Custom Requests auth object to use for credentials
         :param session: Custom Requests session to use for communication with the endpoint
         :param extra_headers: Any extra headers to pass to use for all communications
+        :param timeout: Connection timeout
         :return: Context instance
         :rtype: Context
         """
-        return Context(auth=auth, session=session, extra_headers=extra_headers, server_flags=self.server_flags)
+        return Context(auth=auth, session=session, extra_headers=extra_headers, server_flags=self.server_flags, timeout=timeout)
 
     def describe(self, entity) -> None:
         """
