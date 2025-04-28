@@ -28,15 +28,15 @@ class ODataConnection(object):
         'OData-Version': '4.0',
         'User-Agent': 'python-odata {0}'.format(version),
     }
-    timeout = 90
 
-    def __init__(self, session=None, auth=None, extra_headers: dict = None):
+    def __init__(self, session=None, auth=None, extra_headers: dict = None, timeout=90):
         if session is None:
             self.session = requests.Session()
         else:
             self.session = session
         self.auth = auth
         self.log = logging.getLogger('odata.connection')
+        self.timeout = timeout
 
         self.extra_headers = extra_headers
 

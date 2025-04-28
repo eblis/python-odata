@@ -94,7 +94,7 @@ type_translations = {
     "FloatProperty": "float",
     "BooleanProperty": "bool",
     "UUIDProperty": "uuid.UUID",
-    "EnumTypeProperty": "str"
+    "EnumTypeProperty": "Enum"
 }
 
 
