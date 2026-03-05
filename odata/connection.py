@@ -180,7 +180,7 @@ class ODataConnection(object):
         data = json.dumps(data)
 
         self.log.info(u'PATCH {0}'.format(url))
-        self.log.info(u'Payload: {0}'.format(data))
+        # self.log.info(u'Payload: {0}'.format(data))
 
         response = self._do_patch(url, data=data, headers=headers)
         self._handle_odata_error(response)
