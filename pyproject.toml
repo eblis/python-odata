@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "python-odata"
+name = "python-odata-nw"
 version = "0.6.3.1"
 description = "A simple library for read/write access to OData services."
 license="MIT"
