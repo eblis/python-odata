@@ -9,7 +9,7 @@ from odata.flags import ODataServerFlags
 
 
 class Context:
-    def __init__(self, session=None, auth=None, extra_headers: dict = None, server_flags: ODataServerFlags = None):
+    def __init__(self, session=None, auth=None, extra_headers: dict = None, server_flags: ODataServerFlags = ODataServerFlags()):
         self.log = logging.getLogger('odata.context')
         self.connection = ODataConnection(session=session, auth=auth, extra_headers=extra_headers)
         self.server_flags = server_flags

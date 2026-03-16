@@ -91,6 +91,7 @@ class ODataService(object):
     :param auth: Custom Requests auth object to use for credentials
     :param console: Rich console instance to use for messages. If set to None a new console will be created. Console will inherit quiet flag from quiet_progress.
     :param quiet_progress: Don't show any progress information while reflecting metadata and while other long duration tasks are running. Default is to show progress
+    :param server_flags: Server specific flags for an OData server
     :raises ODataConnectionError: Fetching metadata failed. Server returned an HTTP error code
     """
 

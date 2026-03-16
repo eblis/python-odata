@@ -21,6 +21,11 @@ class EnumTypeProperty(PropertyBase):
         super(EnumTypeProperty, self).__init__(name)
         self.enum_class = enum_class
 
+    def escape_value(self, value):
+        if self.enum_class.__module__:
+            return f"Microsoft.Dynamics.DataEntities.{self.enum_class.__name__}'{value.name}'"
+        return f"{self.enum_class.__name__}'{value.name}'"
+
     def serialize(self, value):
         return value.name
 
