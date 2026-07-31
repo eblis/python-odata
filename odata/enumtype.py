@@ -17,8 +17,8 @@ class EnumTypeProperty(PropertyBase):
     :param enum_class: A subclass of EnumType
     """
 
-    def __init__(self, name, enum_class=EnumType):
-        super(EnumTypeProperty, self).__init__(name)
+    def __init__(self, name, enum_class=EnumType, primary_key=False):
+        super(EnumTypeProperty, self).__init__(name, primary_key)
         self.enum_class = enum_class
 
     def escape_value(self, value):
