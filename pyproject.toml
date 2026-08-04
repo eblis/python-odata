@@ -1,6 +1,6 @@
 [project]
 name = "python-odata"
-version = "0.8.0"
+version = "0.8.1"
 description = "A simple library for read/write access to OData services."
 authors = [
     { name = "Tuomas Mursu", email = "tuomas.mursu@kapsi.fi" },
